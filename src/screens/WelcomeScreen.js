@@ -141,7 +141,7 @@ function Stars() {
     ).current;
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
             {stars.map((star, i) => (
                 <StarDot key={i} {...star} />
             ))}

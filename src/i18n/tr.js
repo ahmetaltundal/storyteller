@@ -74,6 +74,7 @@ export default {
     toastSelectTheme: 'Lütfen bir tema seçin 🌍',
     toastSelectChar: 'Lütfen bir karakter seçin 🦸',
     toastError: 'Hikaye oluşturulurken hata oluştu ❌',
+    apiBusy: 'Sunucu şu an çok yoğun, lütfen birazdan tekrar dene ⏳',
 
     // AI Prompt
     promptTemplate: `Sen çocuklar için hikaye yazan yaratıcı ve sıcak bir yazarsın.

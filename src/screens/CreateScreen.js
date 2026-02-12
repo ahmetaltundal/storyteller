@@ -61,7 +61,13 @@ export default function CreateScreen({ navigation }) {
                 charEmoji: character.emoji,
             });
         } catch (error) {
-            Alert.alert('❌', i18n.t('toastError') + '\n' + error.message);
+            let message = error.message;
+            if (message === 'API_BUSY_TRY_AGAIN') {
+                message = i18n.t('apiBusy');
+            } else if (message.startsWith('API_ERROR: 429')) {
+                message = i18n.t('apiBusy');
+            }
+            Alert.alert('❌', i18n.t('toastError') + '\n' + message);
         } finally {
             setLoading(false);
         }

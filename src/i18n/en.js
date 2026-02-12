@@ -74,6 +74,7 @@ export default {
     toastSelectTheme: 'Please select a theme 🌍',
     toastSelectChar: 'Please select a character 🦸',
     toastError: 'Error creating story ❌',
+    apiBusy: 'Server is busy, please try again in a moment ⏳',
 
     // AI Prompt
     promptTemplate: `You are a creative and warm storyteller for children.

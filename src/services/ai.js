@@ -4,9 +4,11 @@ import { storage } from './storage';
 const API_BASE =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+const DEFAULT_KEY = 'AIzaSyCBpL3OGnzT81MobuOnWiNBhtHZFK8Psf4';
+
 export const StoryAI = {
     async getApiKey() {
-        return (await storage.get('api_key')) || '';
+        return (await storage.get('api_key')) || DEFAULT_KEY;
     },
 
     async setApiKey(key) {
@@ -27,46 +29,65 @@ export const StoryAI = {
 
         const prompt = this.buildPrompt({ theme, character, childName, ageGroup, wish });
 
-        try {
-            const response = await fetch(`${API_BASE}?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: 0.9,
-                        topP: 0.95,
-                        topK: 40,
-                        maxOutputTokens: 2048,
-                    },
-                    safetySettings: [
-                        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-                        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-                    ],
-                }),
-            });
+        // Retry logic for 429 errors
+        let retries = 3;
+        let delay = 1000;
 
-            if (!response.ok) {
-                if (response.status === 400) throw new Error('INVALID_API_KEY');
-                throw new Error(`API_ERROR: ${response.status}`);
+        while (retries >= 0) {
+            try {
+                const response = await fetch(`${API_BASE}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: 0.9,
+                            topP: 0.95,
+                            topK: 40,
+                            maxOutputTokens: 2048,
+                        },
+                        safetySettings: [
+                            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+                            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+                            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+                            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+                        ],
+                    }),
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429 && retries > 0) {
+                        // Wait and retry
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        delay *= 2;
+                        retries--;
+                        continue;
+                    }
+
+                    if (response.status === 400) throw new Error('INVALID_API_KEY');
+                    throw new Error(`API_ERROR: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.candidates?.length) throw new Error('NO_RESPONSE');
+
+                const text = data.candidates[0].content?.parts?.[0]?.text;
+                if (!text) throw new Error('EMPTY_RESPONSE');
+
+                return this.parseStory(text);
+
+            } catch (error) {
+                // If it's the last retry or a non-retryable error, rethrow
+                if (retries === 0 || !error.message.startsWith('API_ERROR: 429')) {
+                    if (['NO_API_KEY', 'INVALID_API_KEY', 'API_ERROR', 'NO_RESPONSE', 'EMPTY_RESPONSE'].some(
+                        (e) => error.message.startsWith(e)
+                    )) {
+                        throw error;
+                    }
+                    if (error.message.includes('429')) throw new Error('API_BUSY_TRY_AGAIN');
+                    throw new Error('NETWORK_ERROR');
+                }
             }
-
-            const data = await response.json();
-            if (!data.candidates?.length) throw new Error('NO_RESPONSE');
-
-            const text = data.candidates[0].content?.parts?.[0]?.text;
-            if (!text) throw new Error('EMPTY_RESPONSE');
-
-            return this.parseStory(text);
-        } catch (error) {
-            if (['NO_API_KEY', 'INVALID_API_KEY', 'API_ERROR', 'NO_RESPONSE', 'EMPTY_RESPONSE'].some(
-                (e) => error.message.startsWith(e)
-            )) {
-                throw error;
-            }
-            throw new Error('NETWORK_ERROR');
         }
     },
 
