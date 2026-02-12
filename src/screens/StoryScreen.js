@@ -9,7 +9,6 @@ import {
     Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Slider from '@react-native-community/slider';
 import { Gradients, Spacing, Radius, Shadows } from '../theme';
 import { i18n } from '../i18n';
 import { TTS } from '../services/tts';
